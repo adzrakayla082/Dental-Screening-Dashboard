@@ -1,0 +1,10 @@
+{
+  "name": "Dental Screening Dashboard",
+  "description": "Dashboard Pemeriksaan dan Analisis Kesehatan Gigi",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
