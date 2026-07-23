@@ -143,7 +143,12 @@ export default function Login({ darkMode, setDarkMode, onLoginSuccess }: LoginPr
                    setPassword('admin123');
                    setError(null);
                  }}
-                 className="py-2 px-3 bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:hover:bg-purple-900/50 border border-purple-200/60 dark:border-purple-800/50 rounded-xl text-purple-900 dark:text-purple-200 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                 className={`py-2 px-3 border rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                   usernameOrEmail.toLowerCase() === 'admin'
+                     ? 'bg-purple-100 dark:bg-purple-900/60 border-purple-400 dark:border-purple-500 text-purple-950 dark:text-purple-100 shadow-xs ring-2 ring-purple-500/30 dark:ring-purple-400/30'
+                     : 'bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:hover:bg-purple-900/50 border-purple-200/60 dark:border-purple-800/50 text-purple-900 dark:text-purple-200'
+                 }`}
+                 id="btn-login-quick-admin"
                >
                  <span>👑 Admin</span>
                </button>
@@ -154,7 +159,12 @@ export default function Login({ darkMode, setDarkMode, onLoginSuccess }: LoginPr
                    setPassword('petugas123');
                    setError(null);
                  }}
-                 className="py-2 px-3 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/50 border border-emerald-200/60 dark:border-emerald-800/50 rounded-xl text-emerald-900 dark:text-emerald-200 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                 className={`py-2 px-3 border rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                   usernameOrEmail.toLowerCase() === 'petugas'
+                     ? 'bg-emerald-100 dark:bg-emerald-900/60 border-emerald-400 dark:border-emerald-500 text-emerald-950 dark:text-emerald-100 shadow-xs ring-2 ring-emerald-500/30 dark:ring-emerald-400/30'
+                     : 'bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/50 border-emerald-200/60 dark:border-emerald-800/50 text-emerald-900 dark:text-emerald-200'
+                 }`}
+                 id="btn-login-quick-petugas"
                >
                  <span>🩺 Petugas</span>
                </button>

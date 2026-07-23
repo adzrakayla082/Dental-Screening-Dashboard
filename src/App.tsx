@@ -20,6 +20,7 @@ import { collection, doc, addDoc, onSnapshot, query, deleteDoc, getDocs, writeBa
 import { db } from './lib/firebase';
 import { RespondentData, AppUser } from './types';
 import { exportToExcel, exportToPdf, generateMockRespondents } from './lib/surveyEngine';
+import { DUMMY_EXCEL_RESPONDENTS, parseExcelFileToRespondents } from './lib/dummyImportData';
 
 // Subcomponents
 import Dashboard from './components/Dashboard';
@@ -73,6 +74,55 @@ export default function App() {
   // Editing Respondent State
   const [editingRespondent, setEditingRespondent] = useState<RespondentData | null>(null);
 
+  // Batch Import Function with Duplicate Detection and Cloud Firestore WriteBatch
+  const handleBatchImportRespondents = async (itemsToImport: Omit<RespondentData, 'id' | 'createdAt'>[]) => {
+    setLoading(true);
+    try {
+      const colRef = collection(db, 'sessions', currentSessionId, 'respondents');
+      const existingSnapshot = await getDocs(colRef);
+      const existingNames = new Set<string>();
+      existingSnapshot.forEach((docItem) => {
+        const d = docItem.data();
+        if (d.nama) existingNames.add(String(d.nama).trim().toLowerCase());
+      });
+
+      const batch = writeBatch(db);
+      let importedCount = 0;
+      let duplicateCount = 0;
+
+      itemsToImport.forEach((item) => {
+        const cleanName = String(item.nama).trim().toLowerCase();
+        if (existingNames.has(cleanName)) {
+          duplicateCount++;
+        } else {
+          const newDocRef = doc(colRef);
+          batch.set(newDocRef, {
+            ...item,
+            createdAt: new Date().toISOString(),
+            createdBy: currentUser?.email || 'System Import'
+          });
+          existingNames.add(cleanName);
+          importedCount++;
+        }
+      });
+
+      if (importedCount > 0) {
+        await batch.commit();
+      }
+
+      return {
+        total: itemsToImport.length,
+        imported: importedCount,
+        duplicates: duplicateCount
+      };
+    } catch (err) {
+      console.error("Gagal melakukan batch import responden:", err);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Sync to Cloud Firestore when Session ID changes (only when logged in)
   useEffect(() => {
     if (!currentUser) return;
@@ -86,6 +136,12 @@ export default function App() {
       if (snapshot.empty) {
         setRespondents([]);
         setLoading(false);
+        // Auto seed if active session is default stan-pemeriksaan-gigi-30-oktober-2025
+        if (currentSessionId === 'stan-pemeriksaan-gigi-30-oktober-2025') {
+          handleBatchImportRespondents(DUMMY_EXCEL_RESPONDENTS).catch(err => {
+            console.warn("Auto-seed batch import failed:", err);
+          });
+        }
         return;
       }
 
@@ -447,6 +503,7 @@ export default function App() {
                 respondents={respondents} 
                 onDeleteRespondent={handleDeleteRespondent}
                 onEditRespondent={handleEditRespondent}
+                onBatchImport={handleBatchImportRespondents}
                 onClearAllData={async () => {
                   if (confirm('Apakah Anda yakin ingin menghapus seluruh data responden?')) {
                     await handleClearSessionData();

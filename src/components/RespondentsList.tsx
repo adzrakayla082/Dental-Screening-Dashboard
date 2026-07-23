@@ -1,17 +1,19 @@
-import React, { useState } from 'react';
-import { Search, Trash2, Eye, Edit, ShieldAlert, CheckCircle2, User, ChevronLeft, ChevronRight, X, Heart, AlertCircle, Sparkles, FileDown, FileSpreadsheet, Users } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Search, Trash2, Eye, Edit, ShieldAlert, CheckCircle2, User, ChevronLeft, ChevronRight, X, Heart, AlertCircle, Sparkles, FileDown, FileSpreadsheet, Users, Upload, Database, Check } from 'lucide-react';
 import { RespondentData } from '../types';
 import Odontogram from './Odontogram';
 import { exportToPdf, exportToExcel } from '../lib/surveyEngine';
+import { DUMMY_EXCEL_RESPONDENTS, parseExcelFileToRespondents } from '../lib/dummyImportData';
 
 interface RespondentsListProps {
   respondents: RespondentData[];
   onDeleteRespondent: (id: string) => Promise<void>;
   onEditRespondent?: (respondent: RespondentData) => void;
   onClearAllData?: () => Promise<void>;
+  onBatchImport?: (items: Omit<RespondentData, 'id' | 'createdAt'>[]) => Promise<{ total: number; imported: number; duplicates: number }>;
 }
 
-export default function RespondentsList({ respondents, onDeleteRespondent, onEditRespondent, onClearAllData }: RespondentsListProps) {
+export default function RespondentsList({ respondents, onDeleteRespondent, onEditRespondent, onClearAllData, onBatchImport }: RespondentsListProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [genderFilter, setGenderFilter] = useState('all');
   const [ageGroupFilter, setAgeGroupFilter] = useState('all');
@@ -22,6 +24,13 @@ export default function RespondentsList({ respondents, onDeleteRespondent, onEdi
   const [selectedRespondent, setSelectedRespondent] = useState<RespondentData | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+
+  // Import Modal States
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [previewData, setPreviewData] = useState<Omit<RespondentData, 'id' | 'createdAt'>[]>(DUMMY_EXCEL_RESPONDENTS);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{ total: number; imported: number; duplicates: number } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Handle Filtering
   const filtered = respondents.filter(r => {
@@ -78,7 +87,23 @@ export default function RespondentsList({ respondents, onDeleteRespondent, onEdi
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 w-full sm:w-auto">
+        <div className="flex items-center gap-2.5 w-full sm:w-auto flex-wrap sm:flex-nowrap">
+          {onBatchImport && (
+            <button
+              onClick={() => {
+                setPreviewData(DUMMY_EXCEL_RESPONDENTS);
+                setImportResult(null);
+                setShowImportModal(true);
+              }}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl shadow-md shadow-purple-600/20 transition-all cursor-pointer hover:scale-[1.02]"
+              id="btn-list-import-excel"
+              title="Impor Data Responden dari File Excel / Dummy 30 Responden"
+            >
+              <Upload className="w-4 h-4" />
+              <span>Impor Excel (30 Responden)</span>
+            </button>
+          )}
+
           <button
             onClick={() => {
               const dataToExport = filtered.length > 0 ? filtered : respondents;
@@ -510,6 +535,237 @@ export default function RespondentsList({ respondents, onDeleteRespondent, onEdi
                 Tutup Detail
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Excel Import & Validation Modal */}
+      {showImportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md overflow-y-auto animate-fadeIn" id="excel-import-modal">
+          <div className="bg-white/90 backdrop-blur-xl border border-white/60 rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden my-auto">
+            
+            {/* Modal Header */}
+            <div className="bg-purple-900 text-white p-5 sm:p-6 flex items-center justify-between relative overflow-hidden">
+              <div className="relative z-10">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 bg-purple-500/40 text-purple-200 text-[10px] font-mono font-bold uppercase rounded-full border border-purple-400/30">
+                    Cloud Firestore Batch Import
+                  </span>
+                </div>
+                <h3 className="text-lg font-black tracking-tight mt-1 flex items-center gap-2">
+                  <Database className="w-5 h-5 text-purple-300" />
+                  Impor Data Responden dari File Excel
+                </h3>
+                <p className="text-xs text-purple-200/90 mt-0.5 font-medium">
+                  Session: <strong className="text-white">stan-pemeriksaan-gigi-30-oktober-2025</strong> • Collection: <strong className="text-white">respondents</strong>
+                </p>
+              </div>
+
+              <button
+                onClick={() => setShowImportModal(false)}
+                className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-xl transition cursor-pointer relative z-10"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Content Area */}
+            <div className="p-5 sm:p-6 space-y-5 overflow-y-auto flex-1">
+              
+              {/* File Selection Controls */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  onClick={() => {
+                    setPreviewData(DUMMY_EXCEL_RESPONDENTS);
+                    setImportResult(null);
+                  }}
+                  className={`p-4 rounded-2xl border text-left flex items-start gap-3 transition cursor-pointer ${previewData === DUMMY_EXCEL_RESPONDENTS ? 'bg-purple-50/80 border-purple-400 shadow-sm' : 'bg-white/60 border-slate-200 hover:bg-slate-50'}`}
+                >
+                  <div className="w-9 h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0">
+                    <FileSpreadsheet className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-900">30 Data Dummy Excel (File Utama)</h4>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Dental_Screening_30_Responden_Dummy.xlsx (30 Responden)</p>
+                  </div>
+                </button>
+
+                <div className="relative">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    accept=".xlsx, .xls"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      try {
+                        const parsed = await parseExcelFileToRespondents(file);
+                        if (parsed.length === 0) {
+                          alert("Tidak ada baris data responden yang valid di file Excel ini.");
+                          return;
+                        }
+                        setPreviewData(parsed);
+                        setImportResult(null);
+                      } catch (err) {
+                        console.error("Gagal membaca file Excel:", err);
+                        alert("Gagal membaca file Excel. Pastikan format kolom sesuai.");
+                      }
+                    }}
+                  />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full h-full p-4 rounded-2xl border border-dashed border-slate-300 hover:border-purple-500 bg-white/40 hover:bg-purple-50/30 text-left flex items-start gap-3 transition cursor-pointer"
+                  >
+                    <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center shrink-0">
+                      <Upload className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-900">Upload File Excel .xlsx Lain</h4>
+                      <p className="text-[10px] text-slate-500 mt-0.5">Klik untuk memilih file dari perangkat Anda</p>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Validation Summary Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="p-3.5 bg-purple-50/60 border border-purple-200/60 rounded-2xl">
+                  <span className="text-[10px] font-bold text-purple-700 uppercase tracking-wider block">Jumlah Data</span>
+                  <span className="text-lg font-black text-purple-950">{previewData.length} Responden</span>
+                </div>
+
+                <div className="p-3.5 bg-emerald-50/60 border border-emerald-200/60 rounded-2xl">
+                  <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">Status Validasi Rumus</span>
+                  <span className="text-xs font-bold text-emerald-900 flex items-center gap-1 mt-1">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    100% Terverifikasi (def-t & DMF-T)
+                  </span>
+                </div>
+
+                <div className="p-3.5 bg-amber-50/60 border border-amber-200/60 rounded-2xl">
+                  <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider block">Cek Duplikat Firestore</span>
+                  <span className="text-xs font-bold text-amber-900 mt-1 block">
+                    {previewData.filter(item => respondents.some(r => r.nama.toLowerCase() === item.nama.toLowerCase())).length} Duplikat Ditemukan
+                  </span>
+                </div>
+              </div>
+
+              {/* Result Notification Toast */}
+              {importResult && (
+                <div className="p-4 bg-emerald-500 text-white rounded-2xl shadow-lg flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <CheckCircle2 className="w-6 h-6 text-white shrink-0" />
+                    <div>
+                      <h4 className="text-xs font-bold">Impor Berhasil Disimpan ke Cloud Firestore!</h4>
+                      <p className="text-[11px] text-emerald-100 mt-0.5">
+                        {importResult.imported} responden baru telah ditulis via Batch Write ({importResult.duplicates} duplikat dilewati). Data otomatis sinkron secara real-time!
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Data Preview Table */}
+              <div className="border border-slate-200/80 rounded-2xl overflow-hidden bg-white/70">
+                <div className="p-3 bg-slate-50 border-b border-slate-200/80 flex items-center justify-between">
+                  <span className="text-xs font-extrabold text-slate-800">Preview Data Excel ({previewData.length} Baris)</span>
+                  <span className="text-[10px] font-bold text-slate-500 font-mono">def-t = d+e+f • DMF-T = D+M+F</span>
+                </div>
+
+                <div className="overflow-x-auto max-h-60">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-100 text-slate-600 font-extrabold border-b border-slate-200">
+                      <tr>
+                        <th className="py-2.5 px-3">No</th>
+                        <th className="py-2.5 px-3">Responden</th>
+                        <th className="py-2.5 px-3">Gender / Umur</th>
+                        <th className="py-2.5 px-3 text-center">def-t (d/e/f)</th>
+                        <th className="py-2.5 px-3 text-center">DMF-T (D/M/F)</th>
+                        <th className="py-2.5 px-3">Rujukan</th>
+                        <th className="py-2.5 px-3 text-center">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-slate-700">
+                      {previewData.map((item, idx) => {
+                        const isDup = respondents.some(r => r.nama.toLowerCase() === item.nama.toLowerCase());
+                        return (
+                          <tr key={idx} className={isDup ? "bg-amber-50/50" : "hover:bg-slate-50"}>
+                            <td className="py-2 px-3 font-mono text-[11px] font-bold text-slate-400">{idx + 1}</td>
+                            <td className="py-2 px-3 font-extrabold text-slate-900">{item.nama}</td>
+                            <td className="py-2 px-3 text-[11px]">{item.jenisKelamin} ({item.umur} th)</td>
+                            <td className="py-2 px-3 text-center font-mono text-[11px]">
+                              <span className="font-bold text-purple-700">{item.indeksDefT.deft}</span>
+                              <span className="text-slate-400 text-[9px] block">({item.indeksDefT.d}/{item.indeksDefT.e}/{item.indeksDefT.f})</span>
+                            </td>
+                            <td className="py-2 px-3 text-center font-mono text-[11px]">
+                              <span className="font-bold text-rose-700">{item.indeksDmft.dmft}</span>
+                              <span className="text-slate-400 text-[9px] block">({item.indeksDmft.D}/{item.indeksDmft.M}/{item.indeksDmft.F})</span>
+                            </td>
+                            <td className="py-2 px-3 text-[11px]">
+                              {item.tindakLanjut.perluDirujuk ? (
+                                <span className="text-rose-600 font-bold">Rujuk: {item.tindakLanjut.dirujukKe}</span>
+                              ) : (
+                                <span className="text-emerald-600 font-medium">Tidak Perlu</span>
+                              )}
+                            </td>
+                            <td className="py-2 px-3 text-center">
+                              {isDup ? (
+                                <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-[9px] font-bold rounded-full">Duplikat</span>
+                              ) : (
+                                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[9px] font-bold rounded-full">Siap Diimpor</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Modal Actions Footer */}
+            <div className="bg-slate-50 p-4 border-t border-slate-200 flex items-center justify-between">
+              <button
+                onClick={() => setShowImportModal(false)}
+                className="px-4 py-2 text-slate-600 hover:bg-slate-200/60 rounded-xl text-xs font-bold transition cursor-pointer"
+              >
+                Batal
+              </button>
+
+              <button
+                onClick={async () => {
+                  if (!onBatchImport) return;
+                  setIsImporting(true);
+                  try {
+                    const res = await onBatchImport(previewData);
+                    setImportResult(res);
+                  } catch (err) {
+                    console.error("Batch write failed:", err);
+                    alert("Gagal menyimpan batch import ke Cloud Firestore.");
+                  } finally {
+                    setIsImporting(false);
+                  }
+                }}
+                disabled={isImporting || previewData.length === 0}
+                className="flex items-center gap-2 px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl shadow-md shadow-purple-600/20 transition cursor-pointer disabled:opacity-50"
+              >
+                {isImporting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Menulis Batch ke Firestore...</span>
+                  </>
+                ) : (
+                  <>
+                    <Database className="w-4 h-4" />
+                    <span>Simpan {previewData.length} Responden ke Cloud Firestore</span>
+                  </>
+                )}
+              </button>
+            </div>
+
           </div>
         </div>
       )}
