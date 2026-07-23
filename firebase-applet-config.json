@@ -1,10 +1,12 @@
 {
-  "projectId": "remixed-project-id",
-  "appId": "remixed-app-id",
-  "apiKey": "remixed-api-key",
-  "authDomain": "remixed-auth-domain",
-  "firestoreDatabaseId": "remixed-firestore-database-id",
-  "storageBucket": "remixed-storage-bucket",
-  "messagingSenderId": "remixed-messaging-sender-id",
-  "measurementId": "remixed-measurement-id"
+  "projectId": "dental-screening",
+  "appId": "1:208777363860:web:39817d1ebafc91f2d24f81",
+  "apiKey": "AIzaSyDjJ2r7WIOMRsC9C92AmVWZ9JEB9VVhV7o",
+  "authDomain": "dental-screening.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-remixremixsurvey-26383433-76c8-43b2-94d6-54a379ff7ba2",
+  "storageBucket": "dental-screening.firebasestorage.app",
+  "messagingSenderId": "208777363860",
+  "measurementId": "",
+  "oAuthClientId": "208777363860-u0pcjoc15va4cacqkpq18r3jjut1c1a6.apps.googleusercontent.com",
+  "recaptchaSiteKey": ""
 }

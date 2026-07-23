@@ -73,34 +73,6 @@ export default function App() {
   // Editing Respondent State
   const [editingRespondent, setEditingRespondent] = useState<RespondentData | null>(null);
 
-  // One-time initial reset to clear out respondent records as requested
-  const initialResetDone = useRef(false);
-  useEffect(() => {
-    if (!currentUser || initialResetDone.current) return;
-    initialResetDone.current = true;
-    
-    const purgeInitialData = async () => {
-      try {
-        const colRef = collection(db, 'sessions', currentSessionId, 'respondents');
-        const qSnapshot = await getDocs(colRef);
-        if (!qSnapshot.empty) {
-          const docs = qSnapshot.docs;
-          for (let i = 0; i < docs.length; i += 400) {
-            const batch = writeBatch(db);
-            const chunk = docs.slice(i, i + 400);
-            chunk.forEach((docItem) => batch.delete(docItem.ref));
-            await batch.commit();
-          }
-          setRespondents([]);
-        }
-      } catch (err) {
-        console.error("Gagal melakukan pembersihan database awal:", err);
-      }
-    };
-    
-    purgeInitialData();
-  }, [currentUser, currentSessionId]);
-
   // Sync to Cloud Firestore when Session ID changes (only when logged in)
   useEffect(() => {
     if (!currentUser) return;
