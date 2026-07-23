@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   FileSpreadsheet, 
   FileDown, 
@@ -13,7 +13,8 @@ import {
   Moon,
   LogOut,
   Shield,
-  ShieldAlert
+  ShieldAlert,
+  BarChart3
 } from 'lucide-react';
 import { collection, doc, addDoc, onSnapshot, query, deleteDoc, getDocs, writeBatch, setDoc } from 'firebase/firestore';
 import { db } from './lib/firebase';
@@ -22,6 +23,7 @@ import { exportToExcel, exportToPdf, generateMockRespondents } from './lib/surve
 
 // Subcomponents
 import Dashboard from './components/Dashboard';
+import DescriptiveAnalysis from './components/DescriptiveAnalysis';
 import DentalForm from './components/DentalForm';
 import RespondentsList from './components/RespondentsList';
 import SessionManager from './components/SessionManager';
@@ -42,7 +44,7 @@ export default function App() {
     return null;
   });
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'input' | 'data' | 'cloud' | 'users'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'descriptive' | 'input' | 'data' | 'cloud' | 'users'>('dashboard');
   
   // Theme Configuration (Dark Mode/Light Mode)
   const [darkMode, setDarkMode] = useState<boolean>(() => {
@@ -66,10 +68,38 @@ export default function App() {
   const [sessionPasscode, setSessionPasscode] = useState('123456');
   
   const [respondents, setRespondents] = useState<RespondentData[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   // Editing Respondent State
   const [editingRespondent, setEditingRespondent] = useState<RespondentData | null>(null);
+
+  // One-time initial reset to clear out respondent records as requested
+  const initialResetDone = useRef(false);
+  useEffect(() => {
+    if (!currentUser || initialResetDone.current) return;
+    initialResetDone.current = true;
+    
+    const purgeInitialData = async () => {
+      try {
+        const colRef = collection(db, 'sessions', currentSessionId, 'respondents');
+        const qSnapshot = await getDocs(colRef);
+        if (!qSnapshot.empty) {
+          const docs = qSnapshot.docs;
+          for (let i = 0; i < docs.length; i += 400) {
+            const batch = writeBatch(db);
+            const chunk = docs.slice(i, i + 400);
+            chunk.forEach((docItem) => batch.delete(docItem.ref));
+            await batch.commit();
+          }
+          setRespondents([]);
+        }
+      } catch (err) {
+        console.error("Gagal melakukan pembersihan database awal:", err);
+      }
+    };
+    
+    purgeInitialData();
+  }, [currentUser, currentSessionId]);
 
   // Sync to Cloud Firestore when Session ID changes (only when logged in)
   useEffect(() => {
@@ -81,6 +111,12 @@ export default function App() {
 
     // Setup real-time listener
     const unsubscribe = onSnapshot(q, (snapshot) => {
+      if (snapshot.empty) {
+        setRespondents([]);
+        setLoading(false);
+        return;
+      }
+
       const list: RespondentData[] = [];
       snapshot.forEach((doc) => {
         const data = doc.data();
@@ -185,12 +221,17 @@ export default function App() {
       const colRef = collection(db, 'sessions', currentSessionId, 'respondents');
       const qSnapshot = await getDocs(colRef);
       
-      const batch = writeBatch(db);
-      qSnapshot.forEach((doc) => {
-        batch.delete(doc.ref);
-      });
+      const docs = qSnapshot.docs;
+      for (let i = 0; i < docs.length; i += 400) {
+        const batch = writeBatch(db);
+        const chunk = docs.slice(i, i + 400);
+        chunk.forEach((docItem) => {
+          batch.delete(docItem.ref);
+        });
+        await batch.commit();
+      }
       
-      await batch.commit();
+      setRespondents([]);
     } catch (err) {
       console.error("Gagal membersihkan data:", err);
       alert("Gagal mengosongkan data.");
@@ -348,6 +389,14 @@ export default function App() {
             </button>
 
             <button
+              onClick={() => setActiveTab('descriptive')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${activeTab === 'descriptive' ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20' : 'text-slate-600 hover:bg-white/50 hover:text-slate-800'}`}
+              id="tab-descriptive"
+            >
+              <BarChart3 className="w-4 h-4" /> Analisis Deskriptif
+            </button>
+
+            <button
               onClick={() => setActiveTab('input')}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${activeTab === 'input' ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20' : 'text-slate-600 hover:bg-white/50 hover:text-slate-800'}`}
               id="tab-input"
@@ -408,6 +457,10 @@ export default function App() {
               <Dashboard respondents={respondents} />
             )}
 
+            {activeTab === 'descriptive' && (
+              <DescriptiveAnalysis respondents={respondents} sessionName={currentSessionName} />
+            )}
+
             {activeTab === 'input' && (
               <DentalForm 
                 onSaveRespondent={handleSaveRespondent} 
@@ -422,6 +475,11 @@ export default function App() {
                 respondents={respondents} 
                 onDeleteRespondent={handleDeleteRespondent}
                 onEditRespondent={handleEditRespondent}
+                onClearAllData={async () => {
+                  if (confirm('Apakah Anda yakin ingin menghapus seluruh data responden?')) {
+                    await handleClearSessionData();
+                  }
+                }}
               />
             )}
 

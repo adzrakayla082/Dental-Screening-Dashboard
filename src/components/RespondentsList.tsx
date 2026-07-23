@@ -8,9 +8,10 @@ interface RespondentsListProps {
   respondents: RespondentData[];
   onDeleteRespondent: (id: string) => Promise<void>;
   onEditRespondent?: (respondent: RespondentData) => void;
+  onClearAllData?: () => Promise<void>;
 }
 
-export default function RespondentsList({ respondents, onDeleteRespondent, onEditRespondent }: RespondentsListProps) {
+export default function RespondentsList({ respondents, onDeleteRespondent, onEditRespondent, onClearAllData }: RespondentsListProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [genderFilter, setGenderFilter] = useState('all');
   const [ageGroupFilter, setAgeGroupFilter] = useState('all');
@@ -107,6 +108,18 @@ export default function RespondentsList({ respondents, onDeleteRespondent, onEdi
             <FileSpreadsheet className="w-4 h-4" />
             <span>Ekspor Excel</span>
           </button>
+
+          {onClearAllData && respondents.length > 0 && (
+            <button
+              onClick={onClearAllData}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3.5 py-2.5 bg-rose-50 hover:bg-rose-500 hover:text-white text-rose-600 border border-rose-200 text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer"
+              id="btn-list-clear-all"
+              title="Kosongkan Seluruh Data Responden"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>Bersihkan Data</span>
+            </button>
+          )}
         </div>
       </div>
 

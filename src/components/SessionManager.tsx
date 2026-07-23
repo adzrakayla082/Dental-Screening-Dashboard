@@ -72,10 +72,10 @@ export default function SessionManager({
   };
 
   const handleLoadMock = () => {
-    if (confirm('Apakah Anda ingin memuat 77 data pemeriksaan gigi dari Stan Pemeriksaan Gigi 30 Oktober 2025 ke dalam sesi ini? Data yang ada tidak akan terhapus.')) {
+    if (confirm('Apakah Anda ingin memuat 50 data sampel pemeriksaan gigi yang variatif dan realistis ke dalam sesi ini? Data yang ada tidak akan terhapus.')) {
       const mock = generateMockRespondents();
       onLoadMockData(mock);
-      setSuccessMsg('77 Data survey simulasi 30 Oktober 2025 berhasil diunggah ke Cloud!');
+      setSuccessMsg('50 Data sampel pemeriksaan gigi variatif dan konsisten berhasil diunggah!');
       setTimeout(() => setSuccessMsg(''), 4000);
     }
   };
@@ -122,7 +122,7 @@ export default function SessionManager({
             {respondentsCount > 0 && (
               <button
                 onClick={() => {
-                  if (confirm('Hapus seluruh data responden dalam sesi ini dari cloud? Tindakan ini tidak dapat dibatalkan.')) {
+                  if (confirm('Apakah Anda yakin ingin menghapus seluruh data responden?')) {
                     onClearSessionData();
                   }
                 }}

@@ -755,168 +755,494 @@ export function exportToPdf(
   doc.save(`laporan_survey_gigi_${cleanName}_${cleanFilter}.pdf`);
 }
 
-// 4. Generate Indonesian Dentists' Survey Sample (Matching the 30 October 2025 dataset)
+// 3b. Export Descriptive Analysis Report to PDF
+export function exportDescriptiveAnalysisToPdf(
+  respondents: RespondentData[],
+  sessionName: string
+) {
+  const stats = calculateSurveyStats(respondents);
+  const doc = new jsPDF();
+  const total = stats.totalRespondents;
+
+  const drawSectionHeader = (title: string, startY: number): number => {
+    if (startY > 245) {
+      doc.addPage();
+      startY = 18;
+    }
+    doc.setFillColor(237, 233, 254);
+    doc.rect(10, startY, 190, 7, 'F');
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(88, 28, 135);
+    doc.text(title, 13, startY + 5);
+    return startY + 11;
+  };
+
+  // 1. Header & Title
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(15, 23, 42);
+  doc.text('LAPORAN ANALISIS DESKRIPTIF HASIL PEMERIKSAAN KESEHATAN GIGI DAN MULUT', 105, 14, { align: 'center' });
+
+  // Metadata Box
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.roundedRect(10, 18, 190, 18, 2, 2, 'FD');
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(51, 65, 85);
+
+  doc.text(`Sesi Pemeriksaan:`, 14, 24);
+  doc.setFont('Helvetica', 'normal');
+  doc.text(`${sessionName}`, 42, 24);
+
+  doc.setFont('Helvetica', 'bold');
+  doc.text(`Tanggal Laporan:`, 14, 31);
+  doc.setFont('Helvetica', 'normal');
+  doc.text(`${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}`, 42, 31);
+
+  doc.setFont('Helvetica', 'bold');
+  doc.text(`Total Responden:`, 120, 24);
+  doc.setFont('Helvetica', 'normal');
+  doc.text(`${total} Responden`, 148, 24);
+
+  doc.setFont('Helvetica', 'bold');
+  doc.text(`Status Data:`, 120, 31);
+  doc.setFont('Helvetica', 'normal');
+  doc.text(`Analisis Otomatis Aktual`, 148, 31);
+
+  let currentY = 41;
+
+  // I. KARAKTERISTIK RESPONDEN
+  currentY = drawSectionHeader('I. KARAKTERISTIK RESPONDEN', currentY);
+
+  const eduSorted = Object.entries(stats.pendidikanBreakdown).sort((a, b) => b[1] - a[1]);
+  const jobSorted = Object.entries(stats.pekerjaanBreakdown).sort((a, b) => b[1] - a[1]);
+
+  autoTable(doc, {
+    startY: currentY,
+    head: [['Variabel Karakteristik', 'Kategori / Kelompok', 'Jumlah (Orang)', 'Persentase (%)']],
+    body: [
+      ['Kelompok Umur', 'Anak-anak (5-10 tahun)', `${stats.ageGroupBreakdown['5-10'] || 0}`, `${stats.ageGroupFilledCount ? (((stats.ageGroupBreakdown['5-10'] || 0) / stats.ageGroupFilledCount) * 100).toFixed(1) : '0.0'}%`],
+      ['Kelompok Umur', 'Remaja (10-18 tahun)', `${stats.ageGroupBreakdown['10-18'] || 0}`, `${stats.ageGroupFilledCount ? (((stats.ageGroupBreakdown['10-18'] || 0) / stats.ageGroupFilledCount) * 100).toFixed(1) : '0.0'}%`],
+      ['Kelompok Umur', 'Produktif (18-60 tahun)', `${stats.ageGroupBreakdown['18-60'] || 0}`, `${stats.ageGroupFilledCount ? (((stats.ageGroupBreakdown['18-60'] || 0) / stats.ageGroupFilledCount) * 100).toFixed(1) : '0.0'}%`],
+      ['Kelompok Umur', 'Lansia (60+ tahun)', `${stats.ageGroupBreakdown['60+'] || 0}`, `${stats.ageGroupFilledCount ? (((stats.ageGroupBreakdown['60+'] || 0) / stats.ageGroupFilledCount) * 100).toFixed(1) : '0.0'}%`],
+      ['Jenis Kelamin', 'Laki-laki', `${stats.genderBreakdown['Laki-laki'] || 0}`, `${stats.genderFilledCount ? (((stats.genderBreakdown['Laki-laki'] || 0) / stats.genderFilledCount) * 100).toFixed(1) : '0.0'}%`],
+      ['Jenis Kelamin', 'Perempuan', `${stats.genderBreakdown['Perempuan'] || 0}`, `${stats.genderFilledCount ? (((stats.genderBreakdown['Perempuan'] || 0) / stats.genderFilledCount) * 100).toFixed(1) : '0.0'}%`],
+      ['Pendidikan Orang Tua (Dominan)', `${eduSorted[0]?.[0] || '-'}`, `${eduSorted[0]?.[1] || 0}`, `${stats.pendidikanFilledCount && eduSorted[0] ? ((eduSorted[0][1] / stats.pendidikanFilledCount) * 100).toFixed(1) : '0.0'}%`],
+      ['Pendidikan Orang Tua (Ke-2)', `${eduSorted[1]?.[0] || '-'}`, `${eduSorted[1]?.[1] || 0}`, `${stats.pendidikanFilledCount && eduSorted[1] ? ((eduSorted[1][1] / stats.pendidikanFilledCount) * 100).toFixed(1) : '0.0'}%`],
+      ['Pekerjaan Orang Tua (Dominan)', `${jobSorted[0]?.[0] || '-'}`, `${jobSorted[0]?.[1] || 0}`, `${stats.pekerjaanFilledCount && jobSorted[0] ? ((jobSorted[0][1] / stats.pekerjaanFilledCount) * 100).toFixed(1) : '0.0'}%`],
+    ],
+    theme: 'grid',
+    styles: { fontSize: 8, cellPadding: 2, textColor: [51, 65, 85] },
+    headStyles: { fillColor: [88, 28, 135], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5 },
+    columnStyles: {
+      0: { fontStyle: 'bold', cellWidth: 45 },
+      1: { cellWidth: 70 },
+      2: { halign: 'right', cellWidth: 38 },
+      3: { halign: 'right', cellWidth: 37 }
+    },
+    margin: { left: 10, right: 10 }
+  });
+
+  currentY = (doc as any).lastAutoTable.finalY + 7;
+
+  // II. ANALISIS KONDISI GIGI SULUNG & INDEKS def-t
+  currentY = drawSectionHeader('II. ANALISIS KONDISI GIGI SULUNG & INDEKS def-t', currentY);
+
+  autoTable(doc, {
+    startY: currentY,
+    head: [['Parameter Odontogram Gigi Sulung', 'Komponen Indeks', 'Jumlah Total Elemen', 'Rata-rata per Responden']],
+    body: [
+      ['Gigi Sehat', '-', `${Math.round(stats.gigiSulungAvg.sehat * total)}`, stats.gigiSulungAvg.sehat.toFixed(2)],
+      ['Gigi Berlubang / Karies', 'd (decayed)', `${Math.round(stats.gigiSulungAvg.karies * total)}`, stats.gigiSulungAvg.karies.toFixed(2)],
+      ['Gigi Dicabut karena Karies', 'e (extracted)', `${Math.round(stats.gigiSulungAvg.dicabutKaries * total)}`, stats.gigiSulungAvg.dicabutKaries.toFixed(2)],
+      ['Gigi dengan Tumpatan tanpa Karies', 'f (filled)', `${Math.round(stats.gigiSulungAvg.tumpatanTanpaKaries * total)}`, stats.gigiSulungAvg.tumpatanTanpaKaries.toFixed(2)],
+      ['Gigi Tumpatan dengan Karies Sekunder', '-', `${Math.round(stats.gigiSulungAvg.tumpatanKaries * total)}`, stats.gigiSulungAvg.tumpatanKaries.toFixed(2)],
+      ['Gigi Sudah Tanggal', 'K', `${Math.round((stats.gigiSulungAvg.sudahTanggal || 0) * total)}`, (stats.gigiSulungAvg.sudahTanggal || 0).toFixed(2)],
+      ['Gigi Tidak Tumbuh / Agenesis', '-', `${Math.round(stats.gigiSulungAvg.tidakTumbuh * total)}`, stats.gigiSulungAvg.tidakTumbuh.toFixed(2)],
+      ['Fissure Sealant & Protesa Cekat', '-', `${Math.round((stats.gigiSulungAvg.fissureSealant + stats.gigiSulungAvg.protesaCekat) * total)}`, (stats.gigiSulungAvg.fissureSealant + stats.gigiSulungAvg.protesaCekat).toFixed(2)],
+      ['TOTAL INDEKS def-t (d + e + f)', 'def-t', `${Math.round((stats.indexAvg.deft) * total)}`, stats.indexAvg.deft.toFixed(2)],
+    ],
+    theme: 'grid',
+    styles: { fontSize: 8, cellPadding: 2, textColor: [51, 65, 85] },
+    headStyles: { fillColor: [88, 28, 135], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5 },
+    columnStyles: {
+      0: { fontStyle: 'bold', cellWidth: 70 },
+      1: { halign: 'center', cellWidth: 35 },
+      2: { halign: 'right', cellWidth: 42 },
+      3: { halign: 'right', fontStyle: 'bold', cellWidth: 43 }
+    },
+    margin: { left: 10, right: 10 }
+  });
+
+  currentY = (doc as any).lastAutoTable.finalY + 7;
+
+  // III. ANALISIS KONDISI GIGI TETAP & INDEKS DMF-T
+  currentY = drawSectionHeader('III. ANALISIS KONDISI GIGI TETAP & INDEKS DMF-T', currentY);
+
+  autoTable(doc, {
+    startY: currentY,
+    head: [['Parameter Odontogram Gigi Tetap', 'Komponen Indeks', 'Jumlah Total Elemen', 'Rata-rata per Responden']],
+    body: [
+      ['Gigi Sehat', '-', `${Math.round(stats.gigiTetapAvg.sehat * total)}`, stats.gigiTetapAvg.sehat.toFixed(2)],
+      ['Gigi Berlubang / Karies', 'D (Decayed)', `${Math.round(stats.gigiTetapAvg.karies * total)}`, stats.gigiTetapAvg.karies.toFixed(2)],
+      ['Gigi Dicabut karena Karies', 'M (Missing)', `${Math.round(stats.gigiTetapAvg.dicabutKaries * total)}`, stats.gigiTetapAvg.dicabutKaries.toFixed(2)],
+      ['Gigi dengan Tumpatan tanpa Karies', 'F (Filled)', `${Math.round(stats.gigiTetapAvg.tumpatanTanpaKaries * total)}`, stats.gigiTetapAvg.tumpatanTanpaKaries.toFixed(2)],
+      ['Gigi Tumpatan dengan Karies Sekunder', '-', `${Math.round(stats.gigiTetapAvg.tumpatanKaries * total)}`, stats.gigiTetapAvg.tumpatanKaries.toFixed(2)],
+      ['Fissure Sealant', '-', `${Math.round(stats.gigiTetapAvg.fissureSealant * total)}`, stats.gigiTetapAvg.fissureSealant.toFixed(2)],
+      ['Gigi Tidak Tumbuh / Impaksi', '-', `${Math.round(stats.gigiTetapAvg.tidakTumbuh * total)}`, stats.gigiTetapAvg.tidakTumbuh.toFixed(2)],
+      ['Protesa Cekat / Implan', '-', `${Math.round(stats.gigiTetapAvg.protesaCekat * total)}`, stats.gigiTetapAvg.protesaCekat.toFixed(2)],
+      ['TOTAL INDEKS DMF-T (D + M + F)', 'DMF-T', `${Math.round((stats.indexAvg.dmft) * total)}`, stats.indexAvg.dmft.toFixed(2)],
+    ],
+    theme: 'grid',
+    styles: { fontSize: 8, cellPadding: 2, textColor: [51, 65, 85] },
+    headStyles: { fillColor: [88, 28, 135], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5 },
+    columnStyles: {
+      0: { fontStyle: 'bold', cellWidth: 70 },
+      1: { halign: 'center', cellWidth: 35 },
+      2: { halign: 'right', cellWidth: 42 },
+      3: { halign: 'right', fontStyle: 'bold', cellWidth: 43 }
+    },
+    margin: { left: 10, right: 10 }
+  });
+
+  currentY = (doc as any).lastAutoTable.finalY + 7;
+
+  // IV. KONDISI MUKOSA ORAL & GUSI
+  currentY = drawSectionHeader('IV. KONDISI MUKOSA ORAL DAN GUSI', currentY);
+
+  const gusiBerdarahCount = Math.round(stats.mukosaPct.gusiBerdarah * total);
+  const lesiCount = Math.round(stats.mukosaPct.lesiMukosaOral * total);
+  const mukosaSehatCount = Math.max(0, total - Math.max(gusiBerdarahCount, lesiCount));
+
+  autoTable(doc, {
+    startY: currentY,
+    head: [['Kondisi Mukosa / Jaringan Lunak Mulut', 'Jumlah Teridentifikasi', 'Persentase Prevalensi (%)']],
+    body: [
+      ['Gusi Berdarah / Bleeding on Probing (BOP)', `${gusiBerdarahCount} orang`, `${(stats.mukosaPct.gusiBerdarah * 100).toFixed(2)}%`],
+      ['Lesi Mukosa Oral (Oral Mucosal Lesions)', `${lesiCount} orang`, `${(stats.mukosaPct.lesiMukosaOral * 100).toFixed(2)}%`],
+      ['Kondisi Mukosa / Gusi Sehat (Tanpa Kelainan)', `${mukosaSehatCount} orang`, `${((mukosaSehatCount / total) * 100).toFixed(2)}%`],
+    ],
+    theme: 'grid',
+    styles: { fontSize: 8, cellPadding: 2, textColor: [51, 65, 85] },
+    headStyles: { fillColor: [88, 28, 135], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5 },
+    columnStyles: {
+      0: { fontStyle: 'bold', cellWidth: 90 },
+      1: { halign: 'right', cellWidth: 50 },
+      2: { halign: 'right', fontStyle: 'bold', cellWidth: 50 }
+    },
+    margin: { left: 10, right: 10 }
+  });
+
+  currentY = (doc as any).lastAutoTable.finalY + 7;
+
+  // V. TINDAK LANJUT DAN RUJUKAN
+  currentY = drawSectionHeader('V. TINDAK LANJUT DAN RUJUKAN', currentY);
+
+  autoTable(doc, {
+    startY: currentY,
+    head: [['Kategori Kebutuhan Perawatan / Rujukan', 'Jumlah Responden', 'Persentase (%)']],
+    body: [
+      ['Perawatan Gigi Segera', `${Math.round(stats.tindakLanjutPct.perluPerawatanSegera * total)} orang`, `${(stats.tindakLanjutPct.perluPerawatanSegera * 100).toFixed(2)}%`],
+      ['Perawatan Gigi Tidak Segera', `${Math.round(stats.tindakLanjutPct.perluPerawatanTidakSegera * total)} orang`, `${(stats.tindakLanjutPct.perluPerawatanTidakSegera * 100).toFixed(2)}%`],
+      ['Memerlukan Rujukan Faskes Lanjutan', `${Math.round(stats.tindakLanjutPct.perluDirujuk * total)} orang`, `${(stats.tindakLanjutPct.perluDirujuk * 100).toFixed(2)}%`],
+      [' - Tujuan Rujukan: Puskesmas', `${Math.round(stats.tindakLanjutPct.dirujukKePuskesmas * total)} orang`, `${(stats.tindakLanjutPct.dirujukKePuskesmas * 100).toFixed(2)}%`],
+      [' - Tujuan Rujukan: Rumah Sakit Umum', `${Math.round(stats.tindakLanjutPct.dirujukKeRSUmum * total)} orang`, `${(stats.tindakLanjutPct.dirujukKeRSUmum * 100).toFixed(2)}%`],
+      [' - Tujuan Rujukan: RSGM / RS Gigi & Mulut', `${Math.round(stats.tindakLanjutPct.dirujukKeRSGM * total)} orang`, `${(stats.tindakLanjutPct.dirujukKeRSGM * 100).toFixed(2)}%`],
+      [' - Tujuan Rujukan: Klinik Pratama', `${Math.round(stats.tindakLanjutPct.dirujukKeKlinikPratama * total)} orang`, `${(stats.tindakLanjutPct.dirujukKeKlinikPratama * 100).toFixed(2)}%`],
+      [' - Tujuan Rujukan: Klinik Utama', `${Math.round(stats.tindakLanjutPct.dirujukKeKlinikUtama * total)} orang`, `${(stats.tindakLanjutPct.dirujukKeKlinikUtama * 100).toFixed(2)}%`],
+    ],
+    theme: 'grid',
+    styles: { fontSize: 8, cellPadding: 2, textColor: [51, 65, 85] },
+    headStyles: { fillColor: [88, 28, 135], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5 },
+    columnStyles: {
+      0: { fontStyle: 'bold', cellWidth: 90 },
+      1: { halign: 'right', cellWidth: 50 },
+      2: { halign: 'right', fontStyle: 'bold', cellWidth: 50 }
+    },
+    margin: { left: 10, right: 10 }
+  });
+
+  currentY = (doc as any).lastAutoTable.finalY + 7;
+
+  // VI. KESIMPULAN DESKRIPTIF & REKOMENDASI
+  currentY = drawSectionHeader('VI. KESIMPULAN DESKRIPTIF & REKOMENDASI', currentY);
+
+  if (currentY > 230) {
+    doc.addPage();
+    currentY = 20;
+    currentY = drawSectionHeader('VI. KESIMPULAN DESKRIPTIF & REKOMENDASI', currentY);
+  }
+
+  let dmftCat = 'Sangat Rendah (< 1.2)';
+  if (stats.indexAvg.dmft >= 1.2 && stats.indexAvg.dmft < 2.7) dmftCat = 'Rendah (1.2 - 2.6)';
+  else if (stats.indexAvg.dmft >= 2.7 && stats.indexAvg.dmft < 4.5) dmftCat = 'Sedang (2.7 - 4.4)';
+  else if (stats.indexAvg.dmft >= 4.5 && stats.indexAvg.dmft < 6.6) dmftCat = 'Tinggi (4.5 - 6.5)';
+  else if (stats.indexAvg.dmft >= 6.6) dmftCat = 'Sangat Tinggi (>= 6.6)';
+
+  let deftCat = 'Sangat Rendah (< 1.2)';
+  if (stats.indexAvg.deft >= 1.2 && stats.indexAvg.deft < 2.7) deftCat = 'Rendah (1.2 - 2.6)';
+  else if (stats.indexAvg.deft >= 2.7 && stats.indexAvg.deft < 4.5) deftCat = 'Sedang (2.7 - 4.4)';
+  else if (stats.indexAvg.deft >= 4.5 && stats.indexAvg.deft < 6.6) deftCat = 'Tinggi (4.5 - 6.5)';
+  else if (stats.indexAvg.deft >= 6.6) deftCat = 'Sangat Tinggi (>= 6.6)';
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(15, 23, 42);
+  doc.text('Kesimpulan Otomatis:', 13, currentY);
+
+  currentY += 5;
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(51, 65, 85);
+
+  const conclLines = [
+    `1. Berdasarkan pemeriksaan pada ${total} responden, diperoleh rata-rata indeks def-t sebesar ${stats.indexAvg.deft.toFixed(2)} (${deftCat}) dan DMF-T sebesar ${stats.indexAvg.dmft.toFixed(2)} (${dmftCat}).`,
+    `2. Komponen karies berlubang aktif (d/D) merupakan penyumbang karies terbesar dibanding komponen perawatan/tumpatan (f/F).`,
+    `3. Prevalensi gusi berdarah mencapai ${(stats.mukosaPct.gusiBerdarah * 100).toFixed(1)}% dan lesi mukosa oral ditemukan pada ${(stats.mukosaPct.lesiMukosaOral * 100).toFixed(1)}% populasi.`,
+    `4. Sebanyak ${Math.round(stats.tindakLanjutPct.perluDirujuk * total)} responden (${(stats.tindakLanjutPct.perluDirujuk * 100).toFixed(1)}%) memerlukan tindak lanjut rujukan ke faskes.`
+  ];
+
+  conclLines.forEach((line) => {
+    doc.text(line, 13, currentY);
+    currentY += 4.5;
+  });
+
+  currentY += 3;
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(15, 23, 42);
+  doc.text('Rekomendasi Intervensi:', 13, currentY);
+
+  currentY += 5;
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(51, 65, 85);
+
+  const recLines = [
+    '1. Meningkatkan program Promosi Kesehatan Gigi dan Mulut (UKGS/UKGM) serta edukasi teknik sikat gigi yang benar.',
+    '2. Melakukan program penambalan gigi awal (Restorative Care) untuk menekan angka karies aktif.',
+    '3. Memfasilitasi rujukan aktif ke Puskesmas/RSGM terdekat bagi responden yang membutuhkan perawatan lanjutan.'
+  ];
+
+  recLines.forEach((line) => {
+    doc.text(line, 13, currentY);
+    currentY += 4.5;
+  });
+
+  currentY += 15;
+
+  // Signatures
+  if (currentY > 250) {
+    doc.addPage();
+    currentY = 25;
+  }
+
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(8.5);
+
+  doc.text('Mengetahui,', 20, currentY);
+  doc.setFont('Helvetica', 'bold');
+  doc.text('Pemeriksa / Tim Analis Data', 20, currentY + 4);
+  doc.text('___________________________', 20, currentY + 20);
+  doc.setFont('Helvetica', 'normal');
+  doc.text('NIP / No. Reg Dental Officer', 20, currentY + 24);
+
+  doc.text('Disetujui oleh,', 130, currentY);
+  doc.setFont('Helvetica', 'bold');
+  doc.text('Kepala Instansi / Penanggung Jawab', 130, currentY + 4);
+  doc.text('___________________________', 130, currentY + 20);
+  doc.setFont('Helvetica', 'normal');
+  doc.text('NIP.', 130, currentY + 24);
+
+  // Add Page Numbers Footers
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.3);
+    doc.line(10, 285, 200, 285);
+
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(100, 116, 139);
+    doc.text('Dental Screening Dashboard - Laporan Analisis Deskriptif Hasil Pemeriksaan Kesehatan Gigi dan Mulut', 10, 290);
+    doc.text(`Halaman ${i} dari ${pageCount}`, 200, 290, { align: 'right' });
+  }
+
+  const cleanName = sessionName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+  doc.save(`laporan_analisis_deskriptif_${cleanName}.pdf`);
+}
+
+// 4. Generate 50 Varied, Realistic and Accurately Calculated Dental Screening Respondents
 export function generateMockRespondents(): RespondentData[] {
+  const firstNames = [
+    "Aditya", "Anisa", "Muhammad", "Siti", "Budi", "Dewi", "Gabriel", "Ni Wayan", "Rizka", "Eko",
+    "Fani", "Hendra", "Indah", "Joko", "Kiki", "Lutfi", "Maya", "Naufal", "Olivia", "Pandu",
+    "Qonita", "Raditya", "Salsabila", "Taufik", "Umar", "Vina", "Wahyu", "Xavier", "Yasmin", "Zainal",
+    "Achmad", "Bella", "Candra", "Dina", "Erlangga", "Fitri", "Gilang", "Hany", "Iqbal", "Julia",
+    "Kevin", "Laila", "Maulana", "Nadia", "Oktavianus", "Putu Ayu", "Qaisar", "Riana", "Surya", "Tri"
+  ];
+  
+  const lastNames = [
+    "Pratama", "Rahmawati", "Rizky", "Nurhaliza", "Santoso", "Lestari", "Fernando", "Sari", "Amalia", "Prasetyo",
+    "Novitasari", "Kurniawan", "Permatasari", "Susilo", "Hakim", "Zaki", "Putri", "Wijaya", "Aulia", "Bagas",
+    "Firdaus", "Hidayat", "Faruq", "Panduwinata", "Mahardika", "Zhafira", "Abidin", "Fauzi", "Safitri", "Maryana",
+    "Putra", "Handayani", "Ramadhan", "Nurhasanah", "Maulana", "Kencana", "Alexander", "Nuraini", "Ibrahim", "Syahputri",
+    "Dwi", "Suardana", "Mansur", "Subagyo", "Suryono", "Kasmuri", "Triyono", "Haryanto", "Kusnan", "Sunarto"
+  ];
+
+  const addresses = [
+    "Jl. Kaliurang Km 5, Sleman", "Godean Km 3, Sleman", "Jl. Magelang Km 7, Sleman", "Jl. Parangtritis Km 4, Bantul",
+    "Jl. Imogiri Barat, Bantul", "Jl. Solo Km 9, Kalasan", "Kraton, Kota Yogyakarta", "Jl. Wonosari Km 6, Banguntapan",
+    "Kotagede, Yogyakarta", "Wates, Kulon Progo", "Wonosari, Gunungkidul", "Manggisan, Bantul", "Gondomanan, Kota Yogyakarta",
+    "Srandakan, Bantul", "Ngaglik, Sleman", "Mlati, Sleman", "Piyungan, Bantul", "Prambanan, Sleman", "Tebet, Kota Yogyakarta",
+    "Sewa, Bantul", "Mantrijeron, Kota Yogyakarta", "Kasihan, Bantul", "Sleman, Yogyakarta", "Banggai, Gunungkidul",
+    "Gamping, Sleman", "Danurejan, Kota Yogyakarta", "Sentolo, Kulon Progo", "Gondokusuman, Kota Yogyakarta", "Pundong, Bantul"
+  ];
+
+  const educations: Array<'SD'|'SMP'|'SMA'|'Diploma'|'S1/D4'|'S2'|'S3'|'Tidak Sekolah'> = ['SD', 'SMP', 'SMA', 'S1/D4', 'S2', 'Diploma', 'Tidak Sekolah'];
+  const jobs: Array<'ASN/PNS/PPPK'|'PEGAWAI SWASTA'|'WIRASWASTA/WIRAUSAHA'|'PELAJAR/MAHASISWA'|'PENGURUS/IBU RUMAH TANGGA'|'TIDAK BEKERJA'> = [
+    'ASN/PNS/PPPK', 'PEGAWAI SWASTA', 'WIRASWASTA/WIRAUSAHA', 'PELAJAR/MAHASISWA', 'PENGURUS/IBU RUMAH TANGGA', 'TIDAK BEKERJA'
+  ];
+  const referrals: Array<'puskesmas' | 'rs_umum' | 'rsgm_rskgm' | 'klinik_pratama' | 'klinik_utama' | 'tidak_dirujuk'> = [
+    'puskesmas', 'rs_umum', 'rsgm_rskgm', 'klinik_pratama', 'tidak_dirujuk'
+  ];
+
   const respondents: RespondentData[] = [];
-  
-  // Total 77 respondents in the dataset
-  // We will distribute variables to exactly match the metrics in the spreadsheet
-  
-  // Education Breakdown out of 41 filled:
-  // SD: 13, SMP: 13, SMA: 13, S1: 1, S2: 1, Tidak Sekolah: 3
-  const educations: Array<'SD'|'SMP'|'SMA'|'S1/D4'|'S2'|'Tidak Sekolah'> = [];
-  for (let i = 0; i < 13; i++) educations.push('SD');
-  for (let i = 0; i < 13; i++) educations.push('SMP');
-  for (let i = 0; i < 13; i++) educations.push('SMA');
-  educations.push('S1/D4');
-  educations.push('S2');
-  for (let i = 0; i < 3; i++) educations.push('Tidak Sekolah');
 
-  // Job Breakdown out of 41 filled:
-  // ASN: 2, Swasta: 17, Wiraswasta: 8, Pelajar: 1, IRT/Pengurus: 13
-  const jobs: Array<'ASN/PNS/PPPK'|'PEGAWAI SWASTA'|'WIRASWASTA/WIRAUSAHA'|'PELAJAR/MAHASISWA'|'PENGURUS/IBU RUMAH TANGGA'> = [];
-  for (let i = 0; i < 2; i++) jobs.push('ASN/PNS/PPPK');
-  for (let i = 0; i < 17; i++) jobs.push('PEGAWAI SWASTA');
-  for (let i = 0; i < 8; i++) jobs.push('WIRASWASTA/WIRAUSAHA');
-  jobs.push('PELAJAR/MAHASISWA');
-  for (let i = 0; i < 13; i++) jobs.push('PENGURUS/IBU RUMAH TANGGA');
-
-  // Gender Breakdown out of 30 filled:
-  // Laki-laki: 14, Perempuan: 16
-  const genders: Array<'Laki-laki'|'Perempuan'> = [];
-  for (let i = 0; i < 14; i++) genders.push('Laki-laki');
-  for (let i = 0; i < 16; i++) genders.push('Perempuan');
-
-  // Age Group Breakdown out of 39 filled:
-  // 5-10 years (36), 18-60 years (3)
-  const ageGroups: Array<{age: number, group: '5-10'|'18-60'}> = [];
-  for (let i = 0; i < 36; i++) ageGroups.push({ age: Math.floor(Math.random() * 5) + 6, group: '5-10' }); // 6 to 10
-  for (let i = 0; i < 3; i++) ageGroups.push({ age: Math.floor(Math.random() * 20) + 25, group: '18-60' }); // 25 to 45
-
-  // Generate 77 respondents
-  for (let i = 1; i <= 77; i++) {
-    // Fill characteristics or leave blank/optional
-    const ed = i <= educations.length ? educations[i - 1] : undefined;
-    const jb = i <= jobs.length ? jobs[i - 1] : undefined;
-    const gd = i <= genders.length ? genders[i - 1] : (Math.random() > 0.5 ? 'Laki-laki' : 'Perempuan');
-    const ageInfo = i <= ageGroups.length ? ageGroups[i - 1] : { age: 8, group: '5-10' as const };
+  for (let i = 0; i < 50; i++) {
+    const fn = firstNames[i];
+    const ln = lastNames[i];
+    const name = `${fn} ${ln}`;
+    const gender: 'Laki-laki' | 'Perempuan' = i % 2 === 0 ? 'Laki-laki' : 'Perempuan';
     
-    // Keadaan gigi averages matching target stats:
-    // Deciduous: Sehat 2.63, Karies (d) 3.38, Dicabut Karies (e) 0.15, Tumpatan (f) 0.00
-    // Permanent: Sehat 31.45, Karies (D) 0.41, Dicabut Karies (M) 0.06, Tumpatan (F) 0.00
-    let gsSehat = 0;
-    let gsKaries = 0;
-    let gsDicabut = 0;
-    
-    let gtSehat = 0;
-    let gtKaries = 0;
-    let gtDicabut = 0;
-    let gtTumpatanKaries = 0;
-    let gtLainLain = 0;
-
-    if (ageInfo.group === '5-10') {
-      // Primary teeth are highly active
-      gsSehat = Math.max(0, Math.floor(Math.random() * 4) + 1); // 1-4
-      // We need total average d = 3.38. Let's assign mostly 3 or 4 karies
-      gsKaries = Math.random() > 0.2 ? (Math.random() > 0.5 ? 4 : 3) : 2; 
-      // Total e = 0.15. 15% chance of 1 dicabut
-      gsDicabut = Math.random() < 0.15 ? 1 : 0;
-      
-      // Permanent teeth are starting to grow
-      gtSehat = Math.floor(Math.random() * 4) + 2; // 2-5 healthy permanent teeth
+    // Distribute ages realistically across 4 age groups
+    let age: number;
+    let group: '5-10' | '10-18' | '18-60' | '60+';
+    if (i < 22) {
+      age = 5 + (i % 6); // 5 to 10
+      group = '5-10';
+    } else if (i < 34) {
+      age = 11 + (i % 8); // 11 to 18
+      group = '10-18';
+    } else if (i < 45) {
+      age = 22 + (i % 35); // 22 to 56
+      group = '18-60';
     } else {
-      // Adult (18-60)
-      gsSehat = 0;
-      gsKaries = 0;
-      gsDicabut = 0;
+      age = 60 + (i % 10); // 60 to 69
+      group = '60+';
+    }
+
+    const edu = educations[i % educations.length];
+    const job = group === '5-10' ? (i % 3 === 0 ? 'PELAJAR/MAHASISWA' : jobs[i % jobs.length]) : jobs[i % jobs.length];
+    const addr = addresses[i % addresses.length] + ", Yogyakarta";
+    const phone = `081234567${(100 + i).toString().padStart(3, '0')}`;
+    const parentName = `Orang Tua ${ln}`;
+
+    // Dental State calculations
+    let gsKaries = 0, gsDicabut = 0, gsTumpatan = 0, gsSehat = 0, gsSudahTanggal = 0;
+    let gtKaries = 0, gtDicabut = 0, gtTumpatan = 0, gtSehat = 0, gtSealant = 0;
+
+    if (group === '5-10') {
+      gsKaries = (i % 5) + 1; // 1 to 5
+      gsDicabut = i % 3 === 0 ? 1 : 0;
+      gsTumpatan = i % 4 === 0 ? 1 : 0;
+      gsSehat = Math.max(0, 20 - gsKaries - gsDicabut - gsTumpatan - (i % 5));
+      gsSudahTanggal = Math.min(10, i % 6);
       
-      // Full permanent dentition: around 28-32 teeth
-      gtSehat = Math.random() > 0.3 ? 32 : 31;
-      gtKaries = Math.random() < 0.3 ? 1 : 0;
-      gtDicabut = Math.random() < 0.1 ? 1 : 0;
-      gtTumpatanKaries = Math.random() < 0.05 ? 1 : 0;
-      gtLainLain = Math.random() < 0.05 ? 1 : 0;
+      gtKaries = i % 5 === 0 ? 1 : 0;
+      gtSehat = 4 + (i % 6);
+    } else if (group === '10-18') {
+      gsSudahTanggal = 16 + (i % 5);
+      gsSehat = Math.max(0, 20 - gsSudahTanggal);
+      
+      gtKaries = (i % 4);
+      gtDicabut = i % 6 === 0 ? 1 : 0;
+      gtTumpatan = i % 3 === 0 ? 1 : 0;
+      gtSehat = Math.max(10, 28 - gtKaries - gtDicabut - gtTumpatan);
+      gtSealant = i % 3 === 0 ? 1 : 0;
+    } else if (group === '18-60') {
+      gsSudahTanggal = 20;
+      
+      gtKaries = (i % 4) + 1;
+      gtDicabut = (i % 3);
+      gtTumpatan = (i % 3);
+      gtSehat = Math.max(15, 32 - gtKaries - gtDicabut - gtTumpatan);
+    } else {
+      // 60+
+      gsSudahTanggal = 20;
+      
+      gtKaries = (i % 3) + 2;
+      gtDicabut = (i % 5) + 4;
+      gtTumpatan = 1;
+      gtSehat = Math.max(5, 32 - gtKaries - gtDicabut - gtTumpatan);
     }
 
-    // Adjust specific values to match averages closer to 31.45 and 0.41
-    if (i % 5 === 0 && ageInfo.group === '5-10') {
-      // Some kids have larger karies
-      gsKaries += 2;
-    }
-    
-    // Re-verify averages after random distributions:
-    const deft = gsKaries + gsDicabut + 0;
-    const dmft = gtKaries + gtDicabut + gtTumpatanKaries;
+    const deft = gsKaries + gsDicabut + gsTumpatan;
+    const dmft = gtKaries + gtDicabut + gtTumpatan;
 
-    // Mukosa Percentages: Gusi berdarah: 0.00%, Lesi: 0.00%
-    const gusiBerdarah = Math.random() < 0.01; // very small
-    const lesiMukosa = Math.random() < 0.01;
+    const gusiBerdarah = (i % 3 === 0);
+    const lesiMukosaOral = (i % 7 === 0);
 
-    // Tindak Lanjut: 
-    // Perlu perawatan segera: 1.30% (~1 person out of 77)
-    // Perlu perawatan tidak segera: 3.90% (~3 people out of 77)
-    // Perlu dirujuk: 27.27% (~21 people)
-    // Dirujuk ke puskesmas: 24.68% (~19 people)
-    const perluPerawatanSegera = i === 12; // exactly 1 person
-    const perluPerawatanTidakSegera = [15, 27, 48].includes(i); // exactly 3 people
-    const perluDirujuk = i <= 21; // exactly 21 people
-    const dirujukKe = perluDirujuk ? (i <= 19 ? 'puskesmas' : 'rs_umum') : 'tidak_dirujuk';
+    const perluPerawatanSegera = (deft > 4 || dmft > 4 || lesiMukosaOral);
+    const perluPerawatanTidakSegera = !perluPerawatanSegera && (deft > 0 || dmft > 0 || gusiBerdarah);
+    const perluDirujuk = perluPerawatanSegera || (i % 2 === 0 && perluPerawatanTidakSegera);
+    const dirujukKe = perluDirujuk ? referrals[i % (referrals.length - 1)] : 'tidak_dirujuk';
 
-    const addresses = ['Sleman, Yogyakarta', 'Bantul, Yogyakarta', 'Kota Yogyakarta', 'Gunungkidul, Yogyakarta', 'Kulon Progo, Yogyakarta'];
-    const randomAddress = addresses[i % addresses.length];
-    const randomTel = `081234567${100 + i}`;
-    const randomOrtu = `Orang Tua #${i}`;
-    
     respondents.push({
-      nama: `Responden #${i}`,
-      alamat: randomAddress,
-      noTelepon: randomTel,
-      namaOrangTua: randomOrtu,
+      nama: name,
+      alamat: addr,
+      noTelepon: phone,
+      namaOrangTua: parentName,
       tanggalInput: '2025-10-30',
       tanggalPemeriksaan: '2025-10-30',
-      jenisKelamin: gd,
-      umur: ageInfo.age,
-      kelompokUmur: ageInfo.group === '5-10' ? '5-10' : '18-60',
-      pendidikan: ed as any,
-      pekerjaan: jb as any,
+      jenisKelamin: gender,
+      umur: age,
+      kelompokUmur: group,
+      pendidikan: edu,
+      pekerjaan: job,
       gigiSulung: {
         sehat: gsSehat,
         karies: gsKaries,
         dicabutKaries: gsDicabut,
         tumpatanKaries: 0,
-        tumpatanTanpaKaries: 0,
+        tumpatanTanpaKaries: gsTumpatan,
         dicabutSebabLain: 0,
         fissureSealant: 0,
         protesaCekat: 0,
         tidakTumbuh: 0,
+        sudahTanggal: gsSudahTanggal,
         lainLain: 0
       },
       gigiTetap: {
-        sehat: gtSehat || 31, // Default 31
+        sehat: gtSehat,
         karies: gtKaries,
         dicabutKaries: gtDicabut,
-        tumpatanKaries: gtTumpatanKaries,
-        tumpatanTanpaKaries: 0,
+        tumpatanKaries: 0,
+        tumpatanTanpaKaries: gtTumpatan,
         dicabutSebabLain: 0,
-        fissureSealant: 0,
+        fissureSealant: gtSealant,
         protesaCekat: 0,
         tidakTumbuh: 0,
-        lainLain: gtLainLain
+        lainLain: 0
       },
       deft,
       dmft,
       mukosa: {
         gusiBerdarah,
-        lesiMukosaOral: lesiMukosa
+        lesiMukosaOral
       },
       tindakLanjut: {
         perluPerawatanSegera,
         perluPerawatanTidakSegera,
         perluDirujuk,
-        dirujukKe: dirujukKe as any
+        dirujukKe
       },
       createdBy: 'derumarahlaut@gmail.com',
-      createdAt: new Date()
+      createdAt: '2025-10-30T08:00:00Z'
     });
   }
 
